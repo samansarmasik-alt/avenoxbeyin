@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "crates/beyin-core",
+]
+resolver = "2"

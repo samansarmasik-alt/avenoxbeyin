@@ -13,3 +13,4 @@ release/
 
 # Geçici yerel ajan çalışma çıktıları
 /.agent-work/
+/target/
