@@ -125,6 +125,9 @@ def sensitive_fold(name):
     return unicodedata.normalize('NFC', text.replace('̇', '')).translate(_SENSITIVE_FOLD)
 
 
+# Cache directory exclusion check: directory names repeat frequently across records,
+# avoiding redundant Unicode normalization, folding, and regex evaluation.
+@functools.lru_cache(maxsize=1024)
 def sensitive_excluded(name):
     """True when a directory name carries a kasa-class word (any position, any case/normal form)."""
     return any(SENSITIVE_WORDS.fullmatch(word) for word in re.findall(r'[^\W\d_]+', sensitive_fold(name)))
@@ -132,7 +135,12 @@ def sensitive_excluded(name):
 
 def sensitive_source(source):
     """A vault-relative source inside a sensitive folder must not enter the memory index or context."""
-    return isinstance(source, str) and any(sensitive_excluded(part) for part in Path(source).parts[:-1])
+    # Fast path: non-strings or files in the root folder (no separator) cannot be inside a subfolder
+    if not isinstance(source, str) or ("/" not in source and "\\" not in source):
+        return False
+    # Avoid Path(source).parts object instantiation overhead for standard forward-slash relative paths
+    parts = Path(source).parts[:-1] if ("\\" in source or source.startswith("/")) else [p for p in source.split("/")[:-1] if p]
+    return any(sensitive_excluded(part) for part in parts)
 
 
 class RevisionConflict(ValueError):
